@@ -19,7 +19,6 @@ La base de datos SQLite (`vulnerable_bank.db`) ya viene incluida con datos de ej
 ### 1. Requisitos previos
 
 - Python 3.7 o superior
-- Git
 - pip
 - virtualenv (puede instalarse con `pip install virtualenv`)
 
