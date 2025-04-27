@@ -1,0 +1,91 @@
+{% extends "layout.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card bg-dark">
+            <div class="card-body text-center">
+                <h1 class="display-4 mb-4">Vulnerable Banking API</h1>
+                <p class="lead">A deliberately insecure API for pentesting practice</p>
+                <div class="alert alert-danger">
+                    <strong>Warning:</strong> This application contains intentional security vulnerabilities for educational purposes.
+                    <br>Do not deploy in production or expose to the internet.
+                </div>
+                
+                <div class="mt-4">
+                    <a href="/login" class="btn btn-primary btn-lg">Login</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5>Included OWASP API Top 10 Vulnerabilities</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item bg-dark">Broken Object Level Authorization (BOLA)</li>
+                            <li class="list-group-item bg-dark">Broken Authentication</li>
+                            <li class="list-group-item bg-dark">Broken Object Property Level Authorization</li>
+                            <li class="list-group-item bg-dark">Unrestricted Resource Consumption</li>
+                            <li class="list-group-item bg-dark">Broken Function Level Authorization</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item bg-dark">Server Side Request Forgery</li>
+                            <li class="list-group-item bg-dark">Security Misconfiguration</li>
+                            <li class="list-group-item bg-dark">Injections</li>
+                            <li class="list-group-item bg-dark">Improper Assets Management</li>
+                            <li class="list-group-item bg-dark">Insecure Deserialization</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5>Test Accounts</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-dark">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Password</th>
+                            <th>Role</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>admin</td>
+                            <td>admin123</td>
+                            <td>Administrator</td>
+                        </tr>
+                        <tr>
+                            <td>john.doe</td>
+                            <td>password123</td>
+                            <td>Customer</td>
+                        </tr>
+                        <tr>
+                            <td>jane.smith</td>
+                            <td>password456</td>
+                            <td>Customer</td>
+                        </tr>
+                        <tr>
+                            <td>manager</td>
+                            <td>manager456</td>
+                            <td>Manager</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

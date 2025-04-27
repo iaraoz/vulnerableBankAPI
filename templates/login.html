@@ -1,0 +1,76 @@
+{% extends "layout.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6 offset-md-3">
+        <div class="card bg-dark">
+            <div class="card-header">
+                <h4>Login to Your Account</h4>
+            </div>
+            <div class="card-body">
+                <div id="login-error" class="alert alert-danger d-none"></div>
+                
+                <form id="login-form">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="username" placeholder="Enter your username">
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" placeholder="Enter your password">
+                    </div>
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary">Login</button>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer">
+                <div class="vulnerability-note text-warning">
+                    <small>
+                        <strong>Note:</strong> This login page contains intentional vulnerabilities, including:
+                        <ul class="mt-2">
+                            <li>Weak credentials validation</li>
+                            <li>SQL Injection vulnerability</li>
+                            <li>Insecure JWT token implementation</li>
+                        </ul>
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // If already logged in, redirect to dashboard
+        if (isAuthenticated()) {
+            window.location.href = '/dashboard';
+        }
+        
+        const loginForm = document.getElementById('login-form');
+        const errorDiv = document.getElementById('login-error');
+        
+        loginForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            // VULNERABILITY: No client-side validation
+            
+            const result = await login(username, password);
+            
+            if (result.success) {
+                window.location.href = '/dashboard';
+            } else {
+                errorDiv.textContent = result.error;
+                errorDiv.classList.remove('d-none');
+            }
+        });
+    });
+</script>
+{% endblock %}

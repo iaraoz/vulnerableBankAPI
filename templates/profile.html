@@ -1,0 +1,223 @@
+{% extends "layout.html" %}
+
+{% block title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4>My Profile</h4>
+                <span class="vulnerability-badge">Excessive Data Exposure</span>
+            </div>
+            <div class="card-body">
+                <div id="profile-loading" class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+                <div id="profile-error" class="alert alert-danger d-none"></div>
+                
+                <div id="profile-container" class="d-none">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h5>Basic Information</h5>
+                            <table class="table table-dark">
+                                <tr>
+                                    <th>Username:</th>
+                                    <td id="profile-username"></td>
+                                </tr>
+                                <tr>
+                                    <th>Full Name:</th>
+                                    <td id="profile-fullname"></td>
+                                </tr>
+                                <tr>
+                                    <th>Email:</th>
+                                    <td id="profile-email"></td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Personal Information</h5>
+                            <table class="table table-dark">
+                                <tr>
+                                    <th>Date of Birth:</th>
+                                    <td id="profile-dob"></td>
+                                </tr>
+                                <tr>
+                                    <th>SSN:</th>
+                                    <td id="profile-ssn"></td>
+                                </tr>
+                                <tr>
+                                    <th>Phone:</th>
+                                    <td id="profile-phone"></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <h5>Additional Information</h5>
+                            <table class="table table-dark">
+                                <tr>
+                                    <th>Address:</th>
+                                    <td id="profile-address"></td>
+                                </tr>
+                                <tr>
+                                    <th>Role:</th>
+                                    <td id="profile-role"></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-danger mt-4">
+                        <strong>Security Warning:</strong> 
+                        This API endpoint exposes all user data including sensitive information like SSN, date of birth, and address. 
+                        This is an example of the "Excessive Data Exposure" vulnerability from the OWASP API Top 10.
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5>Website Connection Tester</h5>
+                <span class="vulnerability-badge">SSRF Vulnerability</span>
+            </div>
+            <div class="card-body">
+                <div id="ssrf-error" class="alert alert-danger d-none"></div>
+                <div id="ssrf-success" class="alert alert-success d-none"></div>
+                
+                <form id="website-check-form">
+                    <div class="mb-3">
+                        <label for="website-url" class="form-label">Enter a URL to check connectivity</label>
+                        <input type="text" class="form-control" id="website-url" placeholder="https://example.com">
+                        <div class="form-text">
+                            Try checking a website to see if it's accessible from the bank's server.
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Check Website</button>
+                </form>
+                
+                <div id="website-result" class="mt-3 d-none">
+                    <h6>Result:</h6>
+                    <pre id="website-result-content" class="bg-dark text-light p-3 rounded"></pre>
+                </div>
+                
+                <div class="alert alert-warning mt-4">
+                    <strong>Hint:</strong> 
+                    This feature is vulnerable to Server-Side Request Forgery (SSRF). Try accessing internal resources or services that should be inaccessible.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Function to load user profile
+    async function loadUserProfile() {
+        const userId = getUserId();
+        if (!userId) return;
+        
+        const profileLoading = document.getElementById('profile-loading');
+        const profileError = document.getElementById('profile-error');
+        const profileContainer = document.getElementById('profile-container');
+        
+        profileLoading.classList.remove('d-none');
+        profileError.classList.add('d-none');
+        profileContainer.classList.add('d-none');
+        
+        const result = await getUserProfile(userId);
+        
+        profileLoading.classList.add('d-none');
+        
+        if (result.success) {
+            const user = result.data;
+            
+            // Fill in profile data
+            document.getElementById('profile-username').textContent = user.username;
+            document.getElementById('profile-fullname').textContent = `${user.first_name} ${user.last_name}`;
+            document.getElementById('profile-email').textContent = user.email;
+            document.getElementById('profile-dob').textContent = user.date_of_birth || 'Not provided';
+            document.getElementById('profile-ssn').textContent = user.ssn || 'Not provided';
+            document.getElementById('profile-phone').textContent = user.phone || 'Not provided';
+            document.getElementById('profile-address').textContent = user.address || 'Not provided';
+            document.getElementById('profile-role').textContent = user.role.charAt(0).toUpperCase() + user.role.slice(1);
+            
+            profileContainer.classList.remove('d-none');
+        } else {
+            profileError.textContent = result.error || "Failed to load profile.";
+            profileError.classList.remove('d-none');
+        }
+    }
+    
+    // Function to check website connectivity
+    async function checkWebsite(url) {
+        try {
+            const response = await fetch('/api/check_website', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${getToken()}`
+                },
+                body: JSON.stringify({ url })
+            });
+            
+            return await response.json();
+        } catch (error) {
+            console.error('Website check error:', error);
+            return { error: 'Network error or server unavailable' };
+        }
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Require authentication
+        if (!requireAuth()) return;
+        
+        // Load user profile
+        loadUserProfile();
+        
+        // Website check form
+        const websiteCheckForm = document.getElementById('website-check-form');
+        const ssrfError = document.getElementById('ssrf-error');
+        const ssrfSuccess = document.getElementById('ssrf-success');
+        const websiteResult = document.getElementById('website-result');
+        const websiteResultContent = document.getElementById('website-result-content');
+        
+        websiteCheckForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const url = document.getElementById('website-url').value.trim();
+            
+            if (!url) {
+                ssrfError.textContent = "Please enter a URL.";
+                ssrfError.classList.remove('d-none');
+                ssrfSuccess.classList.add('d-none');
+                websiteResult.classList.add('d-none');
+                return;
+            }
+            
+            ssrfError.classList.add('d-none');
+            ssrfSuccess.classList.add('d-none');
+            websiteResult.classList.add('d-none');
+            
+            const result = await checkWebsite(url);
+            
+            if (result.error) {
+                ssrfError.textContent = result.error;
+                ssrfError.classList.remove('d-none');
+            } else {
+                ssrfSuccess.textContent = "Website check completed successfully!";
+                ssrfSuccess.classList.remove('d-none');
+                
+                websiteResultContent.textContent = JSON.stringify(result, null, 2);
+                websiteResult.classList.remove('d-none');
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,418 @@
+{% extends "layout.html" %}
+
+{% block title %}Transfer Funds{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4>Transfer Funds</h4>
+                <span class="vulnerability-badge">Injection & BOLA Vulnerabilities</span>
+            </div>
+            <div class="card-body">
+                <div id="transfer-error" class="alert alert-danger d-none"></div>
+                <div id="transfer-success" class="alert alert-success d-none"></div>
+                
+                <form id="transfer-form">
+                    <div class="mb-3">
+                        <label for="from-account" class="form-label">From Account</label>
+                        <select class="form-select" id="from-account" required>
+                            <option value="">Select an account</option>
+                            <!-- Accounts will be loaded dynamically -->
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="to-account" class="form-label">To Account</label>
+                        <div class="input-group">
+                            <select class="form-select" id="to-account" required>
+                                <option value="">Select an account</option>
+                                <!-- All accounts will be loaded dynamically -->
+                            </select>
+                            <div class="form-check form-switch ms-3 d-flex align-items-center">
+                                <input class="form-check-input" type="checkbox" id="external-account-switch">
+                                <label class="form-check-label ms-2" for="external-account-switch">External Account</label>
+                            </div>
+                        </div>
+                        <div id="external-account-input" class="mt-2 d-none">
+                            <input type="text" class="form-control" id="external-account-number" placeholder="Enter account number">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="amount" class="form-label">Amount</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="amount" step="0.01" min="0.01" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" rows="2"></textarea>
+                    </div>
+                    
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary">Transfer Funds</button>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer">
+                <div class="vulnerability-note text-warning">
+                    <small>
+                        <strong>Note:</strong> This transfer page contains intentional vulnerabilities, including:
+                        <ul class="mt-2">
+                            <li>SQL Injection in transfer description</li>
+                            <li>Broken Object Level Authorization - can transfer from any account</li>
+                            <li>Lack of proper input validation</li>
+                            <li>Mass Assignment vulnerabilities</li>
+                        </ul>
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5>Transfer History</h5>
+                <span class="vulnerability-badge">API Versioning Vulnerability</span>
+            </div>
+            <div class="card-body">
+                <div id="transfers-loading" class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+                <div id="transfers-error" class="alert alert-danger d-none"></div>
+                <div id="transfers-container" class="d-none">
+                    <table class="table table-dark table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>From</th>
+                                <th>To</th>
+                                <th>Amount</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transfers-table-body">
+                            <!-- Transfers will be dynamically added here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="use-legacy-api">
+                    <label class="form-check-label text-danger" for="use-legacy-api">
+                        Use legacy transfer API (v1) - Less secure
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let userAccounts = [];
+    let allAccounts = [];
+    
+    // Function to format currency values
+    function formatCurrency(value) {
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+    }
+    
+    // Function to format dates
+    function formatDate(dateString) {
+        return new Date(dateString).toLocaleString();
+    }
+    
+    // Function to load user's accounts
+    async function loadUserAccounts() {
+        const userId = getUserId();
+        if (!userId) return;
+        
+        const result = await getUserAccounts(userId);
+        
+        if (result.success) {
+            userAccounts = result.data;
+            
+            // Populate the "From Account" dropdown
+            const fromAccountSelect = document.getElementById('from-account');
+            fromAccountSelect.innerHTML = '<option value="">Select an account</option>';
+            
+            userAccounts.forEach(account => {
+                const option = document.createElement('option');
+                option.value = account.id;
+                option.textContent = `${account.account_number} (${account.account_type}) - ${formatCurrency(account.balance)}`;
+                fromAccountSelect.appendChild(option);
+            });
+            
+            // Also load all accounts
+            loadAllAccounts();
+            
+            // Load transfer history
+            loadTransferHistory();
+        } else {
+            showError(result.error || "Failed to load accounts.");
+        }
+    }
+    
+    // Function to load all accounts (VULNERABILITY: Exposing all account IDs)
+    async function loadAllAccounts() {
+        // This is vulnerable by design - we're allowing access to all accounts
+        // In the real world, this would be a major security issue
+        
+        // Let's simulate a call that gets all accounts from the first 100 IDs
+        let accounts = [];
+        
+        for (let i = 1; i <= 10; i++) {
+            const result = await getAccountDetails(i);
+            if (result.success) {
+                accounts.push(result.data);
+            }
+        }
+        
+        allAccounts = accounts;
+        
+        // Populate the "To Account" dropdown
+        const toAccountSelect = document.getElementById('to-account');
+        toAccountSelect.innerHTML = '<option value="">Select an account</option>';
+        
+        allAccounts.forEach(account => {
+            const option = document.createElement('option');
+            option.value = account.id;
+            option.textContent = `${account.account_number} (${account.account_type})`;
+            toAccountSelect.appendChild(option);
+        });
+    }
+    
+    // Function to load transfer history
+    async function loadTransferHistory() {
+        const transfersLoading = document.getElementById('transfers-loading');
+        const transfersError = document.getElementById('transfers-error');
+        const transfersContainer = document.getElementById('transfers-container');
+        const transfersTableBody = document.getElementById('transfers-table-body');
+        
+        transfersLoading.classList.remove('d-none');
+        transfersError.classList.add('d-none');
+        transfersContainer.classList.add('d-none');
+        
+        // Get transactions for all user accounts
+        let allTransfers = [];
+        
+        for (const account of userAccounts) {
+            const result = await getAccountTransactions(account.id);
+            
+            if (result.success) {
+                // Filter to only include transfers
+                const transfers = result.data.filter(t => t.transaction_type === 'transfer');
+                allTransfers = [...allTransfers, ...transfers];
+            }
+        }
+        
+        transfersLoading.classList.add('d-none');
+        
+        if (allTransfers.length > 0) {
+            // Sort by timestamp (newest first)
+            allTransfers.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            
+            transfersTableBody.innerHTML = '';
+            
+            allTransfers.forEach(transfer => {
+                const row = document.createElement('tr');
+                
+                // Find account numbers
+                const fromAccount = userAccounts.find(a => a.id === transfer.account_id);
+                const toAccount = allAccounts.find(a => a.id === transfer.recipient_account_id);
+                
+                const fromAccountNumber = fromAccount ? fromAccount.account_number : 'Unknown';
+                const toAccountNumber = toAccount ? toAccount.account_number : 'Unknown';
+                
+                // Only show outgoing transfers (negative amounts)
+                if (transfer.amount < 0) {
+                    row.innerHTML = `
+                        <td>${formatDate(transfer.timestamp)}</td>
+                        <td>${fromAccountNumber}</td>
+                        <td>${toAccountNumber}</td>
+                        <td class="text-danger">${formatCurrency(Math.abs(transfer.amount))}</td>
+                        <td>${transfer.description}</td>
+                    `;
+                    transfersTableBody.appendChild(row);
+                }
+            });
+            
+            transfersContainer.classList.remove('d-none');
+        } else {
+            transfersError.textContent = "No transfer history found.";
+            transfersError.classList.remove('d-none');
+        }
+    }
+    
+    // Function to execute a transfer
+    async function executeTransfer(fromAccountId, toAccountId, amount, description) {
+        const useLegacyApi = document.getElementById('use-legacy-api').checked;
+        
+        // VULNERABILITY: Using a less secure API version if the checkbox is checked
+        if (useLegacyApi) {
+            // Legacy API doesn't validate ownership or have proper checks
+            try {
+                const response = await fetch('/api/v1/transfer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${getToken()}`
+                    },
+                    body: JSON.stringify({
+                        from_account: fromAccountId,
+                        to_account: toAccountId,
+                        amount: amount,
+                        description: description
+                    })
+                });
+                
+                const data = await response.json();
+                console.log("Legacy API response:", data);
+                return data; // This returns directly the JSON with status field
+            } catch (error) {
+                console.error("Legacy API error:", error);
+                return { error: "Network error while using legacy API" };
+            }
+        } else {
+            // "Newer" API with at least some checks
+            const result = await transferMoney(fromAccountId, toAccountId, amount, description);
+            console.log("Regular API response:", result);
+            return result; // This returns {success: true/false, data: {...}}
+        }
+    }
+    
+    // Function to display error message
+    function showError(message) {
+        const errorDiv = document.getElementById('transfer-error');
+        const successDiv = document.getElementById('transfer-success');
+        
+        errorDiv.textContent = message;
+        errorDiv.classList.remove('d-none');
+        successDiv.classList.add('d-none');
+    }
+    
+    // Function to display success message
+    function showSuccess(message) {
+        const errorDiv = document.getElementById('transfer-error');
+        const successDiv = document.getElementById('transfer-success');
+        
+        successDiv.textContent = message;
+        successDiv.classList.remove('d-none');
+        errorDiv.classList.add('d-none');
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Require authentication
+        if (!requireAuth()) return;
+        
+        // Load user accounts
+        loadUserAccounts();
+        
+        // External account toggle
+        const externalAccountSwitch = document.getElementById('external-account-switch');
+        const externalAccountInput = document.getElementById('external-account-input');
+        const toAccountSelect = document.getElementById('to-account');
+        
+        externalAccountSwitch.addEventListener('change', function() {
+            if (this.checked) {
+                externalAccountInput.classList.remove('d-none');
+                toAccountSelect.disabled = true;
+            } else {
+                externalAccountInput.classList.add('d-none');
+                toAccountSelect.disabled = false;
+            }
+        });
+        
+        // Handle transfer form submission
+        const transferForm = document.getElementById('transfer-form');
+        
+        transferForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const fromAccountId = document.getElementById('from-account').value;
+            let toAccountId = document.getElementById('to-account').value;
+            const amount = document.getElementById('amount').value;
+            const description = document.getElementById('description').value;
+            
+            // Basic validation
+            if (!fromAccountId) {
+                return showError("Please select a source account.");
+            }
+            
+            if (externalAccountSwitch.checked) {
+                const externalAccountNumber = document.getElementById('external-account-number').value;
+                if (!externalAccountNumber) {
+                    return showError("Please enter an external account number.");
+                }
+                
+                // VULNERABILITY: Using the first account that matches the account number
+                // Should check if this account exists, but we're being insecure by design
+                const externalAccount = allAccounts.find(a => a.account_number === externalAccountNumber);
+                if (externalAccount) {
+                    toAccountId = externalAccount.id;
+                } else {
+                    return showError("External account not found.");
+                }
+            } else if (!toAccountId) {
+                return showError("Please select a destination account.");
+            }
+            
+            if (fromAccountId === toAccountId) {
+                return showError("You cannot transfer money to the same account.");
+            }
+            
+            if (!amount || parseFloat(amount) <= 0) {
+                return showError("Please enter a valid amount greater than zero.");
+            }
+            
+            // Execute the transfer
+            try {
+                const result = await executeTransfer(fromAccountId, toAccountId, amount, description);
+                console.log("Transfer result:", result); // Debug log
+                
+                // Check both formats since we have two API endpoints (v1 and regular)
+                if (result.status === "Transfer completed" || 
+                    (result.success && result.data && result.data.status === "Transfer completed")) {
+                    showSuccess("Transfer completed successfully!");
+                    
+                    // Reload data
+                    setTimeout(() => {
+                        loadUserAccounts();
+                    }, 1000);
+                    
+                    // Reset form
+                    transferForm.reset();
+                } else {
+                    // Show the appropriate error message
+                    const errorMsg = result.error || 
+                                    (result.data && result.data.error) || 
+                                    "Transfer failed.";
+                    showError(errorMsg);
+                }
+            } catch (error) {
+                showError("An error occurred while processing the transfer.");
+                console.error(error);
+            }
+        });
+        
+        // Warning for legacy API
+        const useLegacyApiCheckbox = document.getElementById('use-legacy-api');
+        
+        useLegacyApiCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                showError("Warning: You are using the legacy API which has known security vulnerabilities!");
+            } else {
+                document.getElementById('transfer-error').classList.add('d-none');
+            }
+        });
+    });
+</script>
+{% endblock %}

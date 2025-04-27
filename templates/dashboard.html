@@ -1,0 +1,313 @@
+{% extends "layout.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <h2>Welcome, <span id="user-name">User</span></h2>
+        <p>Here's an overview of your accounts and recent activity</p>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5>Your Accounts</h5>
+                <span class="vulnerability-badge">BOLA Vulnerability</span>
+            </div>
+            <div class="card-body">
+                <div id="accounts-loading" class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+                <div id="accounts-error" class="alert alert-danger d-none"></div>
+                <div id="accounts-container" class="d-none">
+                    <table class="table table-dark table-hover">
+                        <thead>
+                            <tr>
+                                <th>Account Number</th>
+                                <th>Type</th>
+                                <th>Balance</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="accounts-table-body">
+                            <!-- Accounts will be dynamically added here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5>Recent Transactions</h5>
+                <span class="vulnerability-badge">Security Misconfiguration</span>
+            </div>
+            <div class="card-body">
+                <div id="transactions-loading" class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+                <div id="transactions-error" class="alert alert-danger d-none"></div>
+                <div id="select-account-message" class="alert alert-info d-none">
+                    Select an account from the left to view transactions
+                </div>
+                <div id="transactions-container" class="d-none">
+                    <table class="table table-dark table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Amount</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactions-table-body">
+                            <!-- Transactions will be dynamically added here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-12 mt-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5>Transaction Search</h5>
+                <span class="vulnerability-badge">Injection & Unrestricted Resource Consumption</span>
+            </div>
+            <div class="card-body">
+                <form id="search-form" class="mb-3">
+                    <div class="input-group">
+                        <input type="text" id="search-input" class="form-control" placeholder="Search transaction descriptions...">
+                        <button class="btn btn-primary" type="submit">Search</button>
+                    </div>
+                </form>
+                
+                <div id="search-results-container" class="d-none">
+                    <h6>Search Results:</h6>
+                    <table class="table table-dark table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Account</th>
+                                <th>Type</th>
+                                <th>Amount</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody id="search-results-table-body">
+                            <!-- Search results will be dynamically added here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let selectedAccountId = null;
+    let accountsData = [];
+    
+    // Function to format currency values
+    function formatCurrency(value) {
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+    }
+    
+    // Function to format dates
+    function formatDate(dateString) {
+        return new Date(dateString).toLocaleString();
+    }
+    
+    // Load user profile
+    async function loadUserProfile() {
+        const userId = getUserId();
+        if (!userId) return;
+        
+        const result = await getUserProfile(userId);
+        if (result.success) {
+            document.getElementById('user-name').textContent = `${result.data.first_name} ${result.data.last_name}`;
+        }
+    }
+    
+    // Load user accounts
+    async function loadUserAccounts() {
+        const userId = getUserId();
+        if (!userId) return;
+        
+        const accountsLoading = document.getElementById('accounts-loading');
+        const accountsError = document.getElementById('accounts-error');
+        const accountsContainer = document.getElementById('accounts-container');
+        const accountsTableBody = document.getElementById('accounts-table-body');
+        
+        accountsLoading.classList.remove('d-none');
+        accountsError.classList.add('d-none');
+        accountsContainer.classList.add('d-none');
+        
+        const result = await getUserAccounts(userId);
+        
+        accountsLoading.classList.add('d-none');
+        
+        if (result.success) {
+            accountsData = result.data;
+            
+            if (accountsData.length > 0) {
+                accountsTableBody.innerHTML = '';
+                
+                accountsData.forEach(account => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${account.account_number}</td>
+                        <td>${account.account_type.charAt(0).toUpperCase() + account.account_type.slice(1)}</td>
+                        <td>${formatCurrency(account.balance)}</td>
+                        <td>
+                            <button class="btn btn-sm btn-info view-transactions" data-account-id="${account.id}">View Transactions</button>
+                        </td>
+                    `;
+                    accountsTableBody.appendChild(row);
+                });
+                
+                // Add event listeners to view transaction buttons
+                document.querySelectorAll('.view-transactions').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const accountId = this.getAttribute('data-account-id');
+                        selectedAccountId = accountId;
+                        loadAccountTransactions(accountId);
+                    });
+                });
+                
+                accountsContainer.classList.remove('d-none');
+            } else {
+                accountsError.textContent = "You don't have any accounts.";
+                accountsError.classList.remove('d-none');
+            }
+        } else {
+            accountsError.textContent = result.error || "Failed to load accounts.";
+            accountsError.classList.remove('d-none');
+        }
+    }
+    
+    // Load account transactions
+    async function loadAccountTransactions(accountId) {
+        const transactionsLoading = document.getElementById('transactions-loading');
+        const transactionsError = document.getElementById('transactions-error');
+        const selectAccountMessage = document.getElementById('select-account-message');
+        const transactionsContainer = document.getElementById('transactions-container');
+        const transactionsTableBody = document.getElementById('transactions-table-body');
+        
+        transactionsLoading.classList.remove('d-none');
+        transactionsError.classList.add('d-none');
+        selectAccountMessage.classList.add('d-none');
+        transactionsContainer.classList.add('d-none');
+        
+        const result = await getAccountTransactions(accountId);
+        
+        transactionsLoading.classList.add('d-none');
+        
+        if (result.success) {
+            const transactions = result.data;
+            
+            if (transactions.length > 0) {
+                transactionsTableBody.innerHTML = '';
+                
+                transactions.forEach(transaction => {
+                    const row = document.createElement('tr');
+                    
+                    // Determine if transaction is positive or negative
+                    const amountClass = transaction.amount >= 0 ? 'text-success' : 'text-danger';
+                    
+                    row.innerHTML = `
+                        <td>${formatDate(transaction.timestamp)}</td>
+                        <td>${transaction.transaction_type.charAt(0).toUpperCase() + transaction.transaction_type.slice(1)}</td>
+                        <td class="${amountClass}">${formatCurrency(transaction.amount)}</td>
+                        <td>${transaction.description}</td>
+                    `;
+                    transactionsTableBody.appendChild(row);
+                });
+                
+                transactionsContainer.classList.remove('d-none');
+            } else {
+                transactionsError.textContent = "No transactions found for this account.";
+                transactionsError.classList.remove('d-none');
+            }
+        } else {
+            transactionsError.textContent = result.error || "Failed to load transactions.";
+            transactionsError.classList.remove('d-none');
+        }
+    }
+    
+    // Search transactions
+    async function searchTransactions(query) {
+        const searchResultsContainer = document.getElementById('search-results-container');
+        const searchResultsTableBody = document.getElementById('search-results-table-body');
+        
+        searchResultsTableBody.innerHTML = '<tr><td colspan="5" class="text-center">Searching...</td></tr>';
+        searchResultsContainer.classList.remove('d-none');
+        
+        const result = await searchTransactions(query);
+        
+        if (result.success) {
+            const transactions = result.data;
+            
+            searchResultsTableBody.innerHTML = '';
+            
+            if (transactions.length > 0) {
+                transactions.forEach(transaction => {
+                    const row = document.createElement('tr');
+                    
+                    // Find account number by ID
+                    const account = accountsData.find(a => a.id === transaction.account_id);
+                    const accountNumber = account ? account.account_number : 'Unknown';
+                    
+                    // Determine if transaction is positive or negative
+                    const amountClass = transaction.amount >= 0 ? 'text-success' : 'text-danger';
+                    
+                    row.innerHTML = `
+                        <td>${formatDate(transaction.timestamp)}</td>
+                        <td>${accountNumber}</td>
+                        <td>${transaction.transaction_type.charAt(0).toUpperCase() + transaction.transaction_type.slice(1)}</td>
+                        <td class="${amountClass}">${formatCurrency(transaction.amount)}</td>
+                        <td>${transaction.description}</td>
+                    `;
+                    searchResultsTableBody.appendChild(row);
+                });
+            } else {
+                searchResultsTableBody.innerHTML = '<tr><td colspan="5" class="text-center">No results found</td></tr>';
+            }
+        } else {
+            searchResultsTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">${result.error || "Search failed"}</td></tr>`;
+        }
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Require authentication
+        if (!requireAuth()) return;
+        
+        // Load user data
+        loadUserProfile();
+        loadUserAccounts();
+        
+        // Show select account message initially
+        document.getElementById('select-account-message').classList.remove('d-none');
+        
+        // Set up search form
+        const searchForm = document.getElementById('search-form');
+        searchForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const query = document.getElementById('search-input').value.trim();
+            if (query) {
+                searchTransactions(query);
+            }
+        });
+    });
+</script>
+{% endblock %}
